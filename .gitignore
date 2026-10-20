@@ -1,0 +1,26 @@
+﻿# dependencies / build
+node_modules
+.next
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets and local config — never commit
+.env
+.env.*
+!.env.example
+
+# local data and scratch
+.pgdata
+.uploads
+.shots
+.pg.log
+.pg.err
+.dev.log
+.dev.err
+public/uploads/*
+!public/uploads/.gitkeep
+
+# test output
+test-results
+playwright-report
+source-photos

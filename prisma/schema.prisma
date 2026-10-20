@@ -1,0 +1,386 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Auth ─────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  PROPERTY_MANAGER
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         AdminRole @default(PROPERTY_MANAGER)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions        Session[]
+  passwordResets  PasswordResetToken[]
+  auditLogs       AuditLog[]
+  enquiryNotes    EnquiryNote[]
+  statusChanges   EnquiryStatusHistory[]
+}
+
+/// Server-side session. Only a SHA-256 hash of the cookie token is stored.
+model Session {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// DB-backed fixed-window rate limiter (works across serverless instances).
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+
+  @@index([resetAt])
+}
+
+// ───────────────────────── Enquiries ─────────────────────────
+
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model BookingEnquiry {
+  id              String        @id @default(cuid())
+  reference       String        @unique
+  guestName       String
+  email           String
+  phone           String
+  checkIn         DateTime      @db.Date
+  checkOut        DateTime      @db.Date
+  guests          Int
+  nights          Int
+  specialRequests String?
+  status          EnquiryStatus @default(NEW)
+  /// Immutable quote snapshot (pricing mode, nightly rates, charges, total, currency, quotedAt). Null if no quote was possible.
+  quoteSnapshot   Json?
+  quotedTotal     Decimal?      @db.Decimal(12, 2)
+  currency        String        @default("INR")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  notes           EnquiryNote[]
+  statusHistory   EnquiryStatusHistory[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([checkIn])
+}
+
+model EnquiryNote {
+  id         String         @id @default(cuid())
+  enquiryId  String
+  enquiry    BookingEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     AdminUser?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body       String
+  createdAt  DateTime       @default(now())
+
+  @@index([enquiryId])
+}
+
+model EnquiryStatusHistory {
+  id         String         @id @default(cuid())
+  enquiryId  String
+  enquiry    BookingEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  fromStatus EnquiryStatus?
+  toStatus   EnquiryStatus
+  changedById String?
+  changedBy  AdminUser?     @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime       @default(now())
+
+  @@index([enquiryId])
+}
+
+// ───────────────────────── Property content ─────────────────────────
+
+enum GalleryCategory {
+  LIVING_ROOM
+  BEDROOM
+  KITCHEN
+  BALCONY
+  WASHROOM
+  OTHER
+}
+
+model PropertySpace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  summary     String?
+  description String?
+  category    GalleryCategory @default(OTHER)
+  coverImageId String?
+  occupancy   String?
+  bedDetails  String?
+  houseRules  String?
+  sortOrder   Int      @default(0)
+  featured    Boolean  @default(false)
+  published   Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images    GalleryImage[]
+  amenities SpaceAmenity[]
+
+  @@index([published, archived, sortOrder])
+}
+
+model GalleryImage {
+  id          String          @id @default(cuid())
+  url         String
+  storageKey  String?
+  width       Int?
+  height      Int?
+  title       String?
+  altText     String
+  caption     String?
+  category    GalleryCategory @default(OTHER)
+  spaceId     String?
+  space       PropertySpace?  @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  sortOrder   Int             @default(0)
+  featured    Boolean         @default(false)
+  published   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([published, category, sortOrder])
+  @@index([spaceId])
+}
+
+model Amenity {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  /// Lucide icon name, validated against an allowlist.
+  icon        String   @default("Check")
+  sortOrder   Int      @default(0)
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  spaces SpaceAmenity[]
+}
+
+model SpaceAmenity {
+  spaceId   String
+  amenityId String
+  space     PropertySpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  amenity   Amenity       @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, amenityId])
+}
+
+model Testimonial {
+  id         String   @id @default(cuid())
+  guestName  String
+  body       String
+  rating     Int?
+  photoUrl   String?
+  approved   Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// CMS key/value blocks with draft + published states.
+model WebsiteContent {
+  key        String   @id
+  draft      Json?
+  published  Json?
+  publishedAt DateTime?
+  updatedAt  DateTime @updatedAt
+}
+
+/// Singleton row (id = "singleton").
+model PropertySettings {
+  id              String  @id @default("singleton")
+  propertyName    String  @default("Aavya's Home")
+  address         String?
+  contactEmail    String?
+  phone           String?
+  whatsappNumber  String?
+  mapsUrl         String?
+  latitude        Decimal? @db.Decimal(9, 6)
+  longitude       Decimal? @db.Decimal(9, 6)
+  instagramUrl    String?
+  facebookUrl     String?
+  checkInTime     String?
+  checkOutTime    String?
+  houseRules      String?
+  notifyEmail     String?
+  maxGuests       Int     @default(6)
+  updatedAt       DateTime @updatedAt
+}
+
+model NearbyPlace {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  distance    String?
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+}
+
+// ───────────────────────── Pricing ─────────────────────────
+
+enum PricingMode {
+  WEEKLY
+  DAILY
+}
+
+/// Documented convention: Weekday names, Monday-first. Dates are property-local calendar dates (no time zone).
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum DailyRateStatus {
+  PRICED
+  UNAVAILABLE
+}
+
+enum ChargeType {
+  EXTRA_GUEST
+  CLEANING
+  SECURITY_DEPOSIT
+  TAX
+  OTHER
+}
+
+enum ChargeMethod {
+  FIXED
+  PER_NIGHT
+  PER_PERSON
+  PER_PERSON_PER_NIGHT
+  PERCENT_OF_SUBTOTAL
+}
+
+model PricingSettings {
+  id          String      @id @default("singleton")
+  activeMode  PricingMode @default(WEEKLY)
+  currency    String      @default("INR")
+  /// Free text shown on the pricing page (advance payment, cancellation and refund policy).
+  advancePolicy      String?
+  cancellationPolicy String?
+  /// Guests included in the nightly rate before extra-guest fees apply.
+  includedGuests Int @default(2)
+  updatedAt   DateTime    @updatedAt
+  updatedById String?
+}
+
+model WeeklyRate {
+  id        String   @id @default(cuid())
+  weekday   Weekday  @unique
+  price     Decimal  @db.Decimal(12, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DailyRate {
+  id        String          @id @default(cuid())
+  date      DateTime        @unique @db.Date
+  price     Decimal?        @db.Decimal(12, 2)
+  status    DailyRateStatus @default(PRICED)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model DatePriceOverride {
+  id        String   @id @default(cuid())
+  name      String
+  /// Inclusive
+  startDate DateTime @db.Date
+  /// Exclusive
+  endDate   DateTime @db.Date
+  price     Decimal  @db.Decimal(12, 2)
+  active    Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startDate, endDate])
+}
+
+model PricingCharge {
+  id         String       @id @default(cuid())
+  type       ChargeType
+  name       String
+  amount     Decimal      @db.Decimal(12, 2)
+  method     ChargeMethod
+  active     Boolean      @default(true)
+  /// Refundable charges (e.g. deposits) are shown separately and excluded from the stay total.
+  refundable Boolean      @default(false)
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model PricingFAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  sortOrder Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ───────────────────────── Audit ─────────────────────────
+
+model AuditLog {
+  id         String     @id @default(cuid())
+  actorId    String?
+  actor      AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entity     String?
+  entityId   String?
+  detail     String?
+  createdAt  DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
