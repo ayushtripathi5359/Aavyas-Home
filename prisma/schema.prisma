@@ -241,6 +241,7 @@ model PropertySettings {
   latitude        Decimal? @db.Decimal(9, 6)
   longitude       Decimal? @db.Decimal(9, 6)
   instagramUrl    String?
+  airbnbUrl       String?
   facebookUrl     String?
   checkInTime     String?
   checkOutTime    String?
