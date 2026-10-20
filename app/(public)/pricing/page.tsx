@@ -3,9 +3,8 @@ import Link from "next/link";
 import { ArrowRight, CalendarCheck, ChevronDown, ListChecks, MessageSquareText } from "lucide-react";
 import { PageHeader } from "@/components/public/page-header";
 import { PricingCalculator } from "@/components/public/pricing-calculator";
-import { prisma } from "@/lib/db/prisma";
 import { getContent } from "@/lib/content";
-import { getPublishedFaqs, getSettings } from "@/lib/site";
+import { getActiveCharges, getActiveWeeklyRates, getPricingSettings, getPublishedFaqs, getSettings } from "@/lib/site";
 import { WEEKDAYS, WEEKDAY_LABELS, isValidISODate, todayInZone } from "@/lib/pricing/dates";
 import { formatMoney } from "@/lib/pricing/engine";
 
@@ -28,9 +27,9 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
   const [c, settings, pricing, weekly, charges, faqs] = await Promise.all([
     getContent("page-pricing"),
     getSettings(),
-    prisma.pricingSettings.findUnique({ where: { id: "singleton" } }),
-    prisma.weeklyRate.findMany({ where: { active: true } }),
-    prisma.pricingCharge.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
+    getPricingSettings(),
+    getActiveWeeklyRates(),
+    getActiveCharges(),
     getPublishedFaqs(),
   ]);
   const mode = pricing?.activeMode ?? "WEEKLY";
@@ -78,7 +77,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                 return r ? (
                   <li key={d} className="rounded-xl border border-beige/80 bg-white/80 px-4 py-4 text-center">
                     <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-olive-dark">{WEEKDAY_LABELS[d].slice(0, 3)}</p>
-                    <p className="mt-1 font-serif text-[1.35rem]">{formatMoney(r.price.toFixed(2), currency)}</p>
+                    <p className="mt-1 font-serif text-[1.35rem]">{formatMoney(Number(r.price).toFixed(2), currency)}</p>
                   </li>
                 ) : null;
               })}
@@ -97,7 +96,7 @@ export default async function PricingPage({ searchParams }: { searchParams: Prom
                   {charges.map((ch) => (
                     <li key={ch.id} className="flex items-baseline justify-between gap-4 py-3">
                       <span>{ch.name}{ch.refundable ? <span className="ml-2 text-[0.72rem] text-olive-dark">refundable</span> : null}</span>
-                      <span className="shrink-0 font-medium">{ch.method === "PERCENT_OF_SUBTOTAL" ? `${Number(ch.amount)}%` : formatMoney(ch.amount.toFixed(2), currency)} <span className="text-[0.75rem] font-normal text-espresso/60">{METHOD_TEXT[ch.method]}</span></span>
+                      <span className="shrink-0 font-medium">{ch.method === "PERCENT_OF_SUBTOTAL" ? `${Number(ch.amount)}%` : formatMoney(Number(ch.amount).toFixed(2), currency)} <span className="text-[0.75rem] font-normal text-espresso/60">{METHOD_TEXT[ch.method]}</span></span>
                     </li>
                   ))}
                 </ul>

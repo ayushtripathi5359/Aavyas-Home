@@ -22,11 +22,11 @@ export function FeatureHighlights({ lines }: { lines: string[] }) {
   if (lines.length === 0) return null;
   return (
     <ul className="mt-6 grid grid-cols-5 gap-1 sm:mt-7 sm:flex sm:max-w-[40rem] sm:flex-wrap sm:gap-x-7 sm:gap-y-4" aria-label="Highlights">
-      {lines.map((l, idx) => {
+      {lines.map((l) => {
         const Icon = featureIcon(l);
         return (
           <li key={l} className="flex flex-col items-center gap-1.5 text-center sm:w-[5.4rem] sm:gap-2">
-            <span className={`flex h-10 w-10 items-center justify-center rounded-full text-terracotta sm:h-[3.25rem] sm:w-[3.25rem] ${idx === lines.length - 1 && lines.length > 1 ? "bg-white shadow-[0_6px_16px_-8px_rgba(36,33,31,.45)]" : "bg-beige/55"}`}><Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden /></span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-beige/55 text-terracotta sm:h-[3.25rem] sm:w-[3.25rem]"><Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden /></span>
             <span className="text-[0.62rem] leading-tight text-espresso/85 sm:text-[0.7rem]">{l}</span>
           </li>
         );

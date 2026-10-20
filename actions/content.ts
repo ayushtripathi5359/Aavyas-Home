@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { audit } from "@/lib/audit";
 import { fail, guarded, ok } from "@/lib/action";
 import { GROUP_BY_KEY } from "@/lib/content";
+import { bustSiteCache } from "@/lib/cache";
 
 const draftSchema = z.object({ key: z.string().max(60), values: z.record(z.string(), z.string().max(5000)) });
 const keySchema = z.object({ key: z.string().max(60) });
@@ -37,6 +38,7 @@ export async function publishContent(input: unknown) {
     await prisma.websiteContent.update({ where: { key }, data: { published: row.draft as object, draft: Prisma.DbNull, publishedAt: new Date() } });
     await audit(user.id, "CONTENT_PUBLISHED", "WebsiteContent", key);
     revalidatePath("/", "layout");
+    bustSiteCache();
     revalidatePath("/admin/website-content");
     return ok("Published. Changes are live.");
   });

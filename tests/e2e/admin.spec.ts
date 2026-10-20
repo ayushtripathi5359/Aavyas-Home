@@ -283,6 +283,15 @@ test.describe("content management", () => {
     await expect(page.getByText("Published. Changes are live.")).toBeVisible();
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Ready for a Perfect Stay?" })).toBeVisible();
+
+    // Restore the original heading through the admin (which also refreshes the public cache), like a person would.
+    await page.goto("/admin/website-content");
+    await page.getByRole("button", { name: /Booking call-to-action/ }).click();
+    await page.fill("#booking-cta-heading", "Ready for a Comfortable Stay?");
+    await page.getByTestId("publish-booking-cta").click();
+    await expect(page.getByText("Published. Changes are live.")).toBeVisible();
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Ready for a Comfortable Stay?" })).toBeVisible();
   });
 
   test("testimonials appear only once approved", async ({ page }) => {

@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
+import { cachedQuery } from "@/lib/cache";
 
 export type FieldType = "text" | "textarea" | "image";
 export interface FieldDef {
@@ -131,9 +132,11 @@ export function withDefaults(key: string, stored: unknown): ContentValues {
 }
 
 /** Published content (public site). */
+const publishedRows = cachedQuery(["site-content"], () => prisma.websiteContent.findMany({ select: { key: true, published: true } }));
+
 export async function getContent(key: string): Promise<ContentValues> {
-  const row = await prisma.websiteContent.findUnique({ where: { key } });
-  return withDefaults(key, row?.published);
+  const rows = await publishedRows();
+  return withDefaults(key, rows.find((r) => r.key === key)?.published);
 }
 
 /** Draft if one exists, else published (admin editor and preview). */
@@ -143,7 +146,8 @@ export async function getDraftContent(key: string): Promise<{ values: ContentVal
 }
 
 export async function getAllContent(mode: "published" | "draft"): Promise<Record<string, ContentValues>> {
-  const rows = await prisma.websiteContent.findMany();
+  // Published content comes from the shared cache; drafts (admin preview) always read the database.
+  const rows = mode === "published" ? (await publishedRows()).map((r) => ({ ...r, draft: null as unknown })) : await prisma.websiteContent.findMany();
   const byKey = new Map(rows.map((r) => [r.key, r]));
   return Object.fromEntries(
     CONTENT_GROUPS.map((g) => {

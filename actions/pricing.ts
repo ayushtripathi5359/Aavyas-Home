@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db/prisma";
+import { bustSiteCache } from "@/lib/cache";
 import { audit } from "@/lib/audit";
 import { fail, guarded, ok } from "@/lib/action";
 import { isoToDbDate, dbDateToISO, daysInMonth, addDays } from "@/lib/pricing/dates";
@@ -21,6 +22,7 @@ import {
 const refresh = () => {
   revalidatePath("/admin/pricing");
   revalidatePath("/pricing");
+  bustSiteCache();
 };
 
 const modeSchema = z.object({ mode: z.enum(["WEEKLY", "DAILY"]), confirmed: z.literal(true, "Please confirm the change.") });

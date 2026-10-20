@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { AuthError, requireUser } from "@/lib/auth/guards";
 import { removeStored, storeImage } from "@/lib/storage";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { bustSiteCacheFromRoute } from "@/lib/cache";
 
 const PLACEHOLDER_ALT = "Describe this photo";
 const MAX_FILES = 20;
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
     }
     revalidatePath("/admin/gallery");
     revalidatePath("/", "layout");
+    bustSiteCacheFromRoute();
     return NextResponse.json({ ok: results.some((r) => r.ok), results });
   } catch (e) {
     if (e instanceof AuthError) return NextResponse.json({ ok: false, error: e.message }, { status: 401 });

@@ -27,3 +27,8 @@ source-photos
 
 # private deployment notes (contain secrets)
 NETLIFY-ENV.txt
+.prod.log
+.prod.err
+
+# scratch helper scripts (may contain secrets)
+scripts/_*

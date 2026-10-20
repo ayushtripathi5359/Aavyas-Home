@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { audit } from "@/lib/audit";
 import { fail, guarded, ok } from "@/lib/action";
 import { removeStored } from "@/lib/storage";
+import { bustSiteCache } from "@/lib/cache";
 import {
   amenitySchema,
   imageMetaSchema,
@@ -16,7 +17,10 @@ import {
 } from "@/lib/validation/schemas";
 import type { AdminArea } from "@/lib/auth/guards";
 
-const refreshPublic = () => revalidatePath("/", "layout");
+const refreshPublic = () => {
+  revalidatePath("/", "layout");
+  bustSiteCache();
+};
 const idSchema = z.object({ id: z.string().min(5).max(40) });
 
 // ───────── Gallery ─────────
