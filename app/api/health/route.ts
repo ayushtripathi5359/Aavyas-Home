@@ -12,7 +12,7 @@ export async function GET() {
     DATABASE_URL: !!process.env.DATABASE_URL,
     AUTH_SECRET: (process.env.AUTH_SECRET?.length ?? 0) >= 16,
     NEXT_PUBLIC_SITE_URL: !!process.env.NEXT_PUBLIC_SITE_URL,
-    STORAGE_DRIVER: process.env.STORAGE_DRIVER === "s3" ? "s3" : "local (uploads will not persist on Vercel)",
+    STORAGE_DRIVER: process.env.STORAGE_DRIVER === "s3" ? "s3" : "local (uploads will not persist on Netlify/Vercel)",
     RESEND_API_KEY: !!process.env.RESEND_API_KEY,
   };
 
@@ -31,7 +31,7 @@ export async function GET() {
       database = { reachable: false, problem: "Cannot connect — check DATABASE_URL" };
     }
   } else {
-    database = { reachable: false, problem: "DATABASE_URL is not set in Vercel → Settings → Environment Variables" };
+    database = { reachable: false, problem: "DATABASE_URL is not set — add it in your host's environment variables (Netlify: Site configuration → Environment variables), then redeploy" };
   }
 
   const ok = env.DATABASE_URL && env.AUTH_SECRET && database.reachable && database.migrated === true && database.seeded === true;
