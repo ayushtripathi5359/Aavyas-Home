@@ -48,7 +48,7 @@ export function HeroSection({ content, image, maxGuests, airbnbUrl }: { content:
   const highlights = content.highlights.split("\n").map((s) => s.trim()).filter(Boolean);
   const photo = image ?? { url: SLOT_DEFAULTS.heroMain, altText: "Cozy living room with a sofa, coffee table and framed wall art" };
   return (
-    <section className="relative overflow-hidden bg-[#f8f2e8] lg:min-h-[38rem]">
+    <section className="relative z-10 overflow-x-clip bg-[#f8f2e8] lg:min-h-[38rem]">
       <Botanical className="pointer-events-none absolute -left-8 top-6 hidden h-44 -rotate-12 text-olive/30 xl:block" />
       <div className="mx-auto max-w-[90rem]">
         <div className="relative z-10 px-4 pb-10 pt-10 sm:px-8 lg:w-[56%] lg:pb-10 lg:pl-14 lg:pr-0 lg:pt-12">
