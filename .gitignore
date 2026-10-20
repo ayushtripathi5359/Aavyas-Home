@@ -24,3 +24,6 @@ public/uploads/*
 test-results
 playwright-report
 source-photos
+
+# private deployment notes (contain secrets)
+NETLIFY-ENV.txt
